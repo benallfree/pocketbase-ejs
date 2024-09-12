@@ -1,3 +1,22 @@
+## A PocketBase-compatible EJS fork
+
+* CLI removed
+* Jake dependency removed
+* Pre-release `-pb.x` tag added to version
+* `.npmignore` fixup
+
+Updating:
+
+```bash
+git fetch --all
+git checkout release
+git merge --no-commit origin <release-tag>
+npm version prerelease
+npm publish
+```
+
+=============================
+
 Embedded JavaScript templates<br/>
 [![Known Vulnerabilities](https://snyk.io/test/npm/ejs/badge.svg?style=flat)](https://snyk.io/test/npm/ejs)
 =============================

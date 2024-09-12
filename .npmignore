@@ -1,22 +1,5 @@
-test/
-
-# Copied from .gitignore
-v8.log
-*.swp
-*.swo
-auth_info.js
-dist
-.idea/
-tags
-nbproject/
-spec/browser/autogen_suite.js
-tmtags
-*.DS_Store
-examples/*/log/*
-site/log/*
-.log
-npm-debug.log
-doc/
-coverage/
-out/
-pkg/
+*
+!lib/**/*
+!package.json
+!README.md
+!SECURITY.md
