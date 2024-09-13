@@ -5,15 +5,28 @@
 * Pre-release `-pb.x` tag added to version
 * `.npmignore` fixup
 
-Updating:
+### Versioning Strategy
+
+`pocketbase-ejs` uses [Upstream Anchoring](https://gist.github.com/benallfree/6baa35e925df06b35b2df755f5776cc7).
+
+- **Our Version** = `Upstream MAJOR.MINOR.(Upstream PATCH × 1000 + Our Revision Number)`
+
+Example:
+
+- **Upstream Version**: `1.2.4`
+- **Our First Revision**: `1.2.4001`
+
+This keeps our fork aligned with upstream releases and allows us to manage our own revisions effectively.
+
+### Updating this fork
 
 ```bash
 git fetch --all
-git checkout release
+git checkout pocketbase-release
 git merge --no-commit origin <release-tag>
-npm version prerelease
-npm publish
 ```
+
+Then, update the version number using the Upstream Anchoring technique described above.
 
 =============================
 

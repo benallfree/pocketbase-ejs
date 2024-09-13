@@ -6,7 +6,7 @@
     "engine",
     "ejs"
   ],
-  "version": "3.1.10-pb.0",
+  "version": "3.1.10001",
   "author": "Matthew Eernisse <mde@fleegix.org> (http://fleegix.org)",
   "license": "Apache-2.0",
   "main": "./lib/ejs.js",
@@ -36,6 +36,6 @@
     "lib"
   ],
   "dependencies": {
-    "pocketbase-node": "link:pocketbase-node"
+    "pocketbase-node": "^0.0.2"
   }
 }
