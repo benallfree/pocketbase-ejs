@@ -10,6 +10,7 @@
   "author": "Matthew Eernisse <mde@fleegix.org> (http://fleegix.org)",
   "license": "Apache-2.0",
   "main": "./lib/ejs.js",
+  "types": "./lib/ejs.d.ts",
   "repository": {
     "type": "git",
     "url": "git://github.com/benallfree/pocketbase-ejs.git"
