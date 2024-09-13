@@ -1,5 +1,12 @@
 # pocketbase-ejs
 
+## 3.1.10002
+
+### Patch Changes
+
+- 0982f06: Readme update
+- 0982f06: Added @types/ejs
+
 ## 3.1.10001
 
 ### Patch Changes
