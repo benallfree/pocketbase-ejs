@@ -1,5 +1,11 @@
 # pocketbase-ejs
 
+## 3.1.10003
+
+### Patch Changes
+
+- Add support for 'prepend' template option
+
 ## 3.1.10002
 
 ### Patch Changes
