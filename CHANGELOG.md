@@ -1,5 +1,11 @@
 # pocketbase-ejs
 
+## 3.1.10004
+
+### Patch Changes
+
+- Enh: line number reporting in JS blocks
+
 ## 3.1.10003
 
 ### Patch Changes
