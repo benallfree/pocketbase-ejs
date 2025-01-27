@@ -1,5 +1,11 @@
 # pocketbase-ejs
 
+## 3.1.10005
+
+### Patch Changes
+
+- Fix: improved handling of BadRequestError
+
 ## 3.1.10004
 
 ### Patch Changes
