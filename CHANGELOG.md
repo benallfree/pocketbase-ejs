@@ -1,5 +1,11 @@
 # pocketbase-ejs
 
+## 3.1.10006
+
+### Patch Changes
+
+- Feat: export includeFile for post-processing capabilities such as Markdown
+
 ## 3.1.10005
 
 ### Patch Changes
