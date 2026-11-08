@@ -1,5 +1,4 @@
 /* jshint mocha: true */
-/* eslint-env node, mocha */
 
 /**
  * Module dependencies.
@@ -206,76 +205,90 @@ suite('ejs.compile(str, options)', function () {
   });
 });
 
-suite('client mode', function () {
+suite('ejs.renderFile(path, data, options, cb)', function () {
+  // If inherited settings were honored, 'view cache' would cache the first
+  // render and the second would return stale output.
+  test('does not read settings from the prototype chain', function (done) {
+    var template = path.join(__dirname, 'tmp', 'prototype-settings.ejs');
+    var data = {user: 'mde'};
 
-  test('have a working client option', function () {
-    var fn;
-    var str;
-    var preFn;
-    fn = ejs.compile('<p><%= foo %></p>', {client: true});
-    str = fn.toString();
-    if (!process.env.running_under_istanbul) {
-      eval('var preFn = ' + str);
-      assert.equal(preFn({foo: 'bar'}), '<p>bar</p>');
-    }
-  });
+    fs.writeFileSync(template, '<p><%= user %></p>');
+    Object.prototype.settings = {'view cache': true};
 
-  test('support client mode without locals', function () {
-    var fn;
-    var str;
-    var preFn;
-    fn = ejs.compile('<p><%= "foo" %></p>', {client: true});
-    str = fn.toString();
-    if (!process.env.running_under_istanbul) {
-      eval('var preFn = ' + str);
-      assert.equal(preFn(), '<p>foo</p>');
-    }
-  });
-
-  test('not include rethrow() in client mode if compileDebug is false', function () {
-    var fn = ejs.compile('<p><%= "foo" %></p>', {
-      client: true,
-      compileDebug: false
+    ejs.renderFile(template, data, function (err, first) {
+      if (err) {
+        delete Object.prototype.settings;
+        return done(err);
+      }
+      fs.writeFileSync(template, '<p>changed <%= user %></p>');
+      ejs.renderFile(template, data, function (err, second) {
+        delete Object.prototype.settings;
+        ejs.clearCache();
+        if (err) {
+          return done(err);
+        }
+        assert.equal(first, '<p>mde</p>');
+        assert.equal(second, '<p>changed mde</p>');
+        done();
+      });
     });
-    // There could be a `rethrow` in the function declaration
-    assert((fn.toString().match(/rethrow/g) || []).length <= 1);
   });
 
-  test('support custom escape function in client mode', function () {
-    var customEscape;
-    var fn;
-    var str;
-    customEscape = function customEscape(str) {
-      return !str ? '' : str.toUpperCase();
-    };
-    fn = ejs.compile('HELLO <%= name %>', {escape: customEscape, client: true});
-    str = fn.toString();
-    if (!process.env.running_under_istanbul) {
-      eval('var preFn = ' + str);
-      assert.equal(preFn({name: 'world'}), 'HELLO WORLD'); // eslint-disable-line no-undef
-    }
+  // user.ejs is $-delimited, so output stays literal unless '$' is applied.
+  test('does not read options from data', function (done) {
+    ejs.renderFile('test/fixtures/user.ejs', {name: 'x', delimiter: '$'}, function (err, html) {
+      if (err) { return done(err); }
+      assert.equal(html, '<h1><$= name $></h1>' + lf);
+      done();
+    });
   });
 
-  test('escape filename in errors in client mode', function () {
-    assert.throws(function () {
-      var fn = ejs.compile('<% throw new Error("whoops"); %>', {client: true, filename: '<script>'});
-      fn();
-    }, /Error: &lt;script&gt;/);
+  test("ignores settings['view options'] (Express 2)", function (done) {
+    var data = {name: 'x', settings: {'view options': {delimiter: '$'}}};
+    ejs.renderFile('test/fixtures/user.ejs', data, function (err, html) {
+      if (err) { return done(err); }
+      assert.equal(html, '<h1><$= name $></h1>' + lf);
+      done();
+    });
+  });
+
+  test('`cache` in data does not enable caching', function (done) {
+    var file = path.join(__dirname, 'tmp', 'no-cache-in-data.ejs');
+    fs.writeFileSync(file, '<p>Old</p>');
+    ejs.renderFile(file, {cache: true}, function (err, out) {
+      if (err) { return done(err); }
+      assert.equal(out, '<p>Old</p>');
+      fs.writeFileSync(file, '<p>New</p>');
+      ejs.renderFile(file, {cache: true}, function (err, out2) {
+        if (err) { return done(err); }
+        assert.equal(out2, '<p>New</p>');
+        done();
+      });
+    });
+  });
+
+  test("honors settings['view cache'] (Express 3+)", function (done) {
+    var file = path.join(__dirname, 'tmp', 'view-cache.ejs');
+    var data = {settings: {'view cache': true}};
+    fs.writeFileSync(file, '<p>Old</p>');
+    ejs.renderFile(file, data, function (err) {
+      if (err) { return done(err); }
+      fs.writeFileSync(file, '<p>New</p>');
+      ejs.renderFile(file, data, function (err, out) {
+        ejs.clearCache();
+        if (err) { return done(err); }
+        assert.equal(out, '<p>Old</p>');
+        done();
+      });
+    });
   });
 });
 
-/* Old API -- remove when this shim goes away */
-suite('ejs.render(str, dataAndOpts)', function () {
-  test('render the template with data/opts passed together', function () {
+suite('ejs.render: options are never read from data', function () {
+  test('option-named keys in data are plain locals, not options', function () {
     assert.equal(ejs.render('<p><?= foo ?></p>', {foo: 'yay', delimiter: '?'}),
-      '<p>yay</p>');
-  });
-
-  test('disallow unsafe opts passed along in data', function () {
-    assert.equal(ejs.render('<p><?= locals.foo ?></p>',
-      // localsName should not get reset because it's blacklisted
-      {_with: false, foo: 'yay', delimiter: '?', localsName: '_'}),
-    '<p>yay</p>');
+      '<p><?= foo ?></p>');
+    assert.equal(ejs.render('<%= delimiter %>', {delimiter: '?'}), '?');
   });
 });
 
@@ -379,6 +392,21 @@ suite('ejs.render(str, data, opts)', function () {
 });
 
 suite('ejs.renderFile(path, [data], [options], [fn])', function () {
+  test('null or undefined data is treated as no data', function () {
+    return Promise.all([null, undefined].map(function (data) {
+      return ejs.renderFile('test/fixtures/para.ejs', data).then(function (html) {
+        assert.equal(html, '<p>hey</p>'+lf);
+      });
+    }));
+  });
+
+  test('null data with a callback reports errors to the callback', function (done) {
+    ejs.renderFile('test/fixtures/does-not-exist.ejs', null, function (err) {
+      assert.equal(err.code, 'ENOENT');
+      done();
+    });
+  });
+
   test('render a file', function(done) {
     ejs.renderFile('test/fixtures/para.ejs', function(err, html) {
       if (err) {
@@ -808,6 +836,25 @@ suite('%%>', function () {
   });
 });
 
+suite('literal tags with unusual custom delimiters', function () {
+  // Delimiters that are special in JS strings or in String#replace patterns
+  ['"', '\\'].forEach(function (ch) {
+    test('<' + ch + ch + ' and ' + ch + ch + '> output literally with delimiter ' + ch, function () {
+      var tpl = '<' + ch + ch + ' x ' + ch + ch + '>';
+      assert.equal(ejs.render(tpl, {}, {delimiter: ch}), '<' + ch + ' x ' + ch + '>');
+    });
+  });
+
+  test('open delimiter $ with delimiter & (a $& replacement token)', function () {
+    assert.equal(ejs.render('$&& x', {}, {openDelimiter: '$', delimiter: '&'}), '$& x');
+  });
+
+  test('custom open/close delimiters that need escaping', function () {
+    var opts = {openDelimiter: '"', closeDelimiter: '\\'};
+    assert.equal(ejs.render('"%% x %%\\', {}, opts), '"% x %\\');
+  });
+});
+
 suite('<%_ and _%>', function () {
   test('slurps spaces and tabs', function () {
     assert.equal(ejs.render(fixture('space-and-tab-slurp.ejs'), {users: users}),
@@ -1040,6 +1087,14 @@ suite('include()', function () {
       fixture('hello-template.html'));
   });
 
+  test('includer returning an empty template renders nothing', function () {
+    var inc = function () {
+      // filename points at a real file; the empty template must still win
+      return {filename: 'test/fixtures/hello-world.ejs', template: ''};
+    };
+    assert.equal(ejs.render('[<%- include("x") %>]', {}, {includer: inc}), '[]');
+  });
+
   test('work when nested', function () {
     var file = 'test/fixtures/menu.ejs';
     assert.equal(ejs.render(fixture('menu.ejs'), {pets: users}, {filename: file}),
@@ -1169,16 +1224,6 @@ suite('examples', function () {
   });
 });
 
-suite('meta information', function () {
-  test('has a version', function () {
-    assert.strictEqual(ejs.VERSION, require('../package.json').version);
-  });
-
-  test('had a name', function () {
-    assert.strictEqual(ejs.name, 'ejs');
-  });
-});
-
 suite('identifier validation', function () {
   test('invalid outputFunctionName', function() {
     assert.throws(function() {
@@ -1204,5 +1249,62 @@ suite('identifier validation', function () {
           'console.log(1); //'
         ]});
     }, /destructuredLocals\[0\] is not a valid JS identifier/);
+  });
+});
+
+suite('prototype pollution hardening', function () {
+  // Helper to safely run a test while Object.prototype is polluted, ensuring
+  // cleanup so the rest of the suite isn't poisoned.
+  function withPollution(props, fn) {
+    var keys = Object.keys(props);
+    keys.forEach(function (k) { Object.prototype[k] = props[k]; });
+    try { fn(); }
+    finally { keys.forEach(function (k) { delete Object.prototype[k]; }); }
+  }
+
+  test('escapeFn cannot be hijacked via Object.prototype', function () {
+    withPollution({ escapeFn: function (x) { return '[HIJACKED] ' + x; } }, function () {
+      var out = ejs.render('<%= name %>', { name: '<script>alert(1)</script>' });
+      assert.equal(out, '&lt;script&gt;alert(1)&lt;/script&gt;');
+    });
+  });
+
+  test('include cannot be hijacked via Object.prototype', function () {
+    var called = false;
+    withPollution({ include: function () { called = true; return '[HIJACKED]'; } }, function () {
+      try {
+        ejs.render('<%- include("hello-world") %>', {}, {
+          filename: __dirname + '/fixtures/anything.ejs'
+        });
+      } catch (e) { /* fixture-resolution can fail; we only care that the polluted include wasn't invoked */ }
+      assert.equal(called, false, 'polluted include must not be invoked');
+    });
+  });
+
+  test('__append cannot be hijacked via Object.prototype', function () {
+    var called = false;
+    withPollution({ __append: function () { called = true; } }, function () {
+      var out = ejs.render('<%= name %>', { name: 'foo' });
+      assert.equal(out, 'foo');
+      assert.equal(called, false, 'polluted __append must not be invoked');
+    });
+  });
+
+  test('unsafePrototypeLocals: true restores prototype-chain lookup', function () {
+    function Data() {}
+    Data.prototype.greeting = 'hi';
+    var out = ejs.render('<%= greeting %>', new Data(),
+      { unsafePrototypeLocals: true });
+    assert.equal(out, 'hi');
+  });
+
+  test('Object.prototype.unsafePrototypeLocals cannot enable opt-in', function () {
+    withPollution({
+      unsafePrototypeLocals: true,
+      escapeFn: function (x) { return '[HIJACKED] ' + x; }
+    }, function () {
+      var out = ejs.render('<%= name %>', { name: '<x>' });
+      assert.equal(out, '&lt;x&gt;');
+    });
   });
 });

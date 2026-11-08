@@ -3,12 +3,17 @@
 
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="86" height="20" role="img" aria-label="pocket: ports"><title>pocket: ports</title><a target="_blank" xlink:href="https://github.com/benallfree/pocketports"><linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient><clipPath id="r"><rect width="86" height="20" rx="3" fill="#fff"/></clipPath><g clip-path="url(#r)"><rect width="47" height="20" fill="#555"/><rect x="47" width="39" height="20" fill="#007ec6"/><rect width="86" height="20" fill="url(#s)"/></g><g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="110"><text aria-hidden="true" x="245" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="370">pocket</text><text x="245" y="140" transform="scale(.1)" fill="#fff" textLength="370">pocket</text><text aria-hidden="true" x="655" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="290">ports</text><text x="655" y="140" transform="scale(.1)" fill="#fff" textLength="290">ports</text></g></a></svg> ![GitHub Repo stars](https://img.shields.io/github/stars/benallfree/pocketbase-ejs)
 
-
 ### What's different
 
-- CLI removed
-- Jake dependency removed
-- `.npmignore` fixup
+`pocketbase-ejs` runs inside the [PocketBase](https://pocketbase.io) JSVM (goja), which is synchronous and has no Node.js builtins.
+
+- `fs` and `path` come from [`pocketbase-node`](https://github.com/benallfree/pocketbase-node) instead of Node.js
+- `renderFile()` is synchronous: it returns the rendered string (no callback or Promise)
+- `prepend` option: code inserted at the top of every compiled template (e.g. helper functions)
+- `includeFile` option and exported `ejs.includeFile()`: wrap how includes are loaded and rendered (e.g. post-process partials)
+- Render errors are thrown as `EjsError` with `line`, `col`, `context`, `path` and `status`. The line is exact even inside multi-line `<% %>` blocks
+- PocketBase API errors (`BadRequestError`, `NotFoundError`, `ForbiddenError`, ...) thrown in a template pass through unwrapped, so their HTTP status is kept
+- CLI and browser bundle are not published
 
 ### Versioning Strategy
 
@@ -18,8 +23,8 @@
 
 Example:
 
-- **Upstream Version**: `1.2.4`
-- **Our First Revision**: `1.2.4001`
+- **Upstream Version**: `7.0.2`
+- **Our First Revision**: `7.0.2001`
 
 This keeps our fork aligned with upstream releases and allows us to manage our own revisions effectively.
 
@@ -28,10 +33,10 @@ This keeps our fork aligned with upstream releases and allows us to manage our o
 ```bash
 git fetch --all
 git checkout pocketbase-release
-git merge --no-commit origin <release-tag>
+git merge --no-commit upstream <release-tag>
 ```
 
-Then, update the version number using the Upstream Anchoring technique described above.
+Re-apply the JSVM changes in `lib/esm/ejs.js` (each is marked `pocketbase-ejs:`), run `npm run build` to regenerate `lib/cjs`, then update the version using the Upstream Anchoring technique above.
 
 --------------
 
@@ -51,8 +56,8 @@ In short, DO NOT submit 'vulnerabilities' that include this snippet of code:
 
 ```javascript
 app.get('/', (req, res) => {
-  res.render('index', req.query)
-})
+  res.render('index', req.query);
+});
 ```
 
 ## Installation
@@ -61,19 +66,55 @@ app.get('/', (req, res) => {
 $ npm install ejs
 ```
 
+### Import or require
+
+Supports both CommonJS and ES Modules.
+
+```javascript
+import ejs from 'ejs';
+// Or
+const ejs = require('ejs');
+```
+
+### Compatibility
+
+Server: CommonJS approach (`require`) supports Node versions at least
+back to v0.12, likely older versions too. ES Modules approach (`import`)
+requires a Node version that supports ESM.
+
+CLI: Requires Node v8 or newer.
+
+Browser: EJS supports all modern browsers, but is very likely to work even
+in very, very old browsers. Your mileage may vary.
+
+Bundlers and alternate runtimes: as of v6.0, the published package imports
+cleanly under Rollup, Rolldown, tsdown, esbuild, Webpack, Vite, Browserify,
+Bun, and Deno. Earlier versions emitted `module.exports = ejs;` from inside
+the ESM source as a dual-mode shim; modern ESM-aware bundlers and Bun
+treated this as malformed ESM. The shim has been removed from
+`lib/esm/*.js` and moved into the `lib/cjs/*` compile step, so the
+published CJS surface (`require('ejs')`) is unchanged. For Browserify,
+pass `--node` so it picks the `main` entry instead of the prebuilt UMD
+bundle pointed to by the `browser` field.
+
+Browser-targeted bundlers that support conditional exports select the prebuilt
+bundle through the `browser` export condition. Use this bundle to compile and
+render template strings; loading templates from the filesystem with `renderFile`
+requires the Node entry point.
+
 ## Features
 
-- Control flow with `<% %>`
-- Escaped output with `<%= %>` (escape function configurable)
-- Unescaped raw output with `<%- %>`
-- Newline-trim mode ('newline slurping') with `-%>` ending tag
-- Whitespace-trim mode (slurp all whitespace) for control flow with `<%_ _%>`
-- Custom delimiters (e.g. `[? ?]` instead of `<% %>`)
-- Includes
-- Client-side support
-- Static caching of intermediate JavaScript
-- Static caching of templates
-- Complies with the [Express](http://expressjs.com) view system
+  * Control flow with `<% %>`
+  * Escaped output with `<%= %>` (escape function configurable)
+  * Unescaped raw output with `<%- %>`
+  * Newline-trim mode ('newline slurping') with `-%>` ending tag
+  * Whitespace-trim mode (slurp surrounding spaces and tabs) for control flow with `<%_ _%>`
+  * Custom delimiters (e.g. `[? ?]` instead of `<% %>`)
+  * Includes
+  * Client-side support
+  * Static caching of intermediate JavaScript
+  * Static caching of templates
+  * Complies with the [Express](http://expressjs.com) view system
 
 ## Example
 
@@ -83,93 +124,108 @@ $ npm install ejs
 <% } %>
 ```
 
-Try EJS online at: https://ionicabizau.github.io/ejs-playground/.
-
 ## Basic usage
 
 ```javascript
-let template = ejs.compile(str, options)
-template(data)
+const template = ejs.compile(str, options);
+template(data);
 // => Rendered HTML string
 
-ejs.render(str, data, options)
+ejs.render(str, data, options);
 // => Rendered HTML string
 
-ejs.renderFile(filename, data, options, function (err, str) {
-  // str => Rendered HTML string
-})
+ejs.renderFile(filename, data, options, function(err, str){
+    // str => Rendered HTML string
+});
 ```
 
-It is also possible to use `ejs.render(dataAndOptions);` where you pass
-everything in a single object. In that case, you'll end up with local variables
-for all the passed options. However, be aware that your code could break if we
-add an option with the same name as one of your data object's properties.
-Therefore, we do not recommend using this shortcut.
-
 ### Important
-
 You should never give end-users unfettered access to the EJS render method, If you do so you are using EJS in an inherently un-secure way.
 
 ### Options
 
-- `cache` Compiled functions are cached, requires `filename`
-- `filename` The name of the file being rendered. Not required if you
-  are using `renderFile()`. Used by `cache` to key caches, and for includes.
-- `root` Set template root(s) for includes with an absolute path (e.g, /file.ejs).
-  Can be array to try to resolve include from multiple directories.
-- `views` An array of paths to use when resolving includes with relative paths.
-- `context` Function execution context
-- `compileDebug` When `false` no debug instrumentation is compiled
-- `client` When `true`, compiles a function that can be rendered
-  in the browser without needing to load the EJS Runtime
-  ([ejs.min.js](https://github.com/mde/ejs/releases/latest)).
-- `delimiter` Character to use for inner delimiter, by default '%'
-- `openDelimiter` Character to use for opening delimiter, by default '<'
-- `closeDelimiter` Character to use for closing delimiter, by default '>'
-- `debug` Outputs generated function body
-- `strict` When set to `true`, generated function is in strict mode
-- `_with` Whether or not to use `with() {}` constructs. If `false`
-  then the locals will be stored in the `locals` object. Set to `false` in strict mode.
-- `destructuredLocals` An array of local variables that are always destructured from
-  the locals object, available even in strict mode.
-- `localsName` Name to use for the object storing local variables when not using
-  `with` Defaults to `locals`
-- `rmWhitespace` Remove all safe-to-remove whitespace, including leading
-  and trailing whitespace. It also enables a safer version of `-%>` line
-  slurping for all scriptlet tags (it does not strip new lines of tags in
-  the middle of a line).
-- `escape` The escaping function used with `<%=` construct. It is
-  used in rendering and is `.toString()`ed in the generation of client functions.
-  (By default escapes XML).
-- `outputFunctionName` Set to a string (e.g., 'echo' or 'print') for a function to print
-  output inside scriptlet tags.
-- `async` When `true`, EJS will use an async function for rendering. (Depends
-  on async/await support in the JS runtime.
-- `includer` Custom function to handle EJS includes, receives `(originalPath, parsedPath)`
-  parameters, where `originalPath` is the path in include as-is and `parsedPath` is the
-  previously resolved path. Should return an object `{ filename, template }`,
-  you may return only one of the properties, where `filename` is the final parsed path and `template`
-  is the included content.
+  - `cache`                 Compiled functions are cached, requires `filename`
+  - `filename`              The name of the file being rendered. Not required if you
+    are using `renderFile()`. Used by `cache` to key caches, and for includes.
+  - `root`                  Set template root(s) for includes with an absolute path (e.g, /file.ejs).
+    Can be array to try to resolve include from multiple directories.
+  - `views`                 An array of paths to use when resolving includes with relative paths.
+  - `context`               Function execution context
+  - `compileDebug`          When `false` no debug instrumentation is compiled
+  - `delimiter`             Character to use for inner delimiter, by default '%'
+  - `openDelimiter`         Character to use for opening delimiter, by default '<'
+  - `closeDelimiter`        Character to use for closing delimiter, by default '>'
+  - `debug`                 Outputs generated function body
+  - `strict`                When set to `true`, generated function is in strict mode
+  - `_with`                 Whether or not to use `with() {}` constructs. If `false`
+    then the locals will be stored in the `locals` object. Set to `false` in strict mode.
+  - `unsafePrototypeLocals` When `true`, allows templates to resolve identifiers
+    through the prototype chain of the locals object. Required if you pass class
+    instances or `Object.create(...)` results as locals and rely on inherited
+    properties at the top level. Defaults to `false`; enabling it disables the
+    v6 prototype-pollution mitigation.
+  - `destructuredLocals`    An array of local variables that are always destructured from
+    the locals object, available even in strict mode.
+  - `localsName`            Name to use for the object storing local variables when not using
+    `with` Defaults to `locals`
+  - `rmWhitespace`          Remove all safe-to-remove whitespace: leading and
+    trailing whitespace on each line, and blank lines. Because trailing spaces
+    are removed first, `-%>` reliably trims the newline after a tag.
+  - `escape`                The escaping function used with `<%=` construct.
+    (By default escapes XML.) See [Escaping and output
+    context](#escaping-and-output-context) for when the default is not the right
+    choice.
+  - `outputFunctionName`    Set to a string (e.g., 'echo' or 'print') for a function to print
+    output inside scriptlet tags.
+  - `async`                 When `true`, EJS will use an async function for rendering. (Depends
+    on async/await support in the JS runtime).
+  - `includer`              Custom function to handle EJS includes, receives `(originalPath, parsedPath)`
+    parameters, where `originalPath` is the path in include as-is and `parsedPath` is the
+    previously resolved path. Should return an object `{ filename, template }`,
+    you may return only one of the properties, where `filename` is the final parsed path and `template`
+    is the included content.
 
-This project uses [JSDoc](http://usejsdoc.org/). For the full public API
+This project uses [JSDoc](https://jsdoc.app/). For the full public API
 documentation, clone the repository and run `jake doc`. This will run JSDoc
 with the proper options and output the documentation to `out/`. If you want
 the both the public & private API docs, run `jake devdoc` instead.
 
 ### Tags
 
-- `<%` 'Scriptlet' tag, for control-flow, no output
-- `<%_` 'Whitespace Slurping' Scriptlet tag, strips all whitespace before it
-- `<%=` Outputs the value into the template (escaped)
-- `<%-` Outputs the unescaped value into the template
-- `<%#` Comment tag, no execution, no output
-- `<%%` Outputs a literal '<%'
-- `%%>` Outputs a literal '%>'
-- `%>` Plain ending tag
-- `-%>` Trim-mode ('newline slurp') tag, trims following newline
-- `_%>` 'Whitespace Slurping' ending tag, removes all whitespace after it
+  - `<%`              'Scriptlet' tag, for control-flow, no output
+  - `<%_`             'Whitespace Slurping' Scriptlet tag, strips spaces and tabs before it
+  - `<%=`             Outputs the value into the template (escaped)
+  - `<%-`             Outputs the unescaped value into the template
+  - `<%#`             Comment tag, no execution, no output
+  - `<%%`             Outputs a literal '<%'
+  - `%%>`             Outputs a literal '%>'
+  - `%>`              Plain ending tag
+  - `-%>`             Trim-mode ('newline slurp') tag, trims a newline directly after it
+  - `_%>`             'Whitespace Slurping' ending tag, removes spaces and tabs after it, then one newline
 
-For the full syntax documentation, please see [docs/syntax.md](https://github.com/mde/ejs/blob/master/docs/syntax.md).
+### Escaping and output context
+
+1. EJS is most often used to generate HTML.
+2. `<%= %>` reflects that. It escapes for HTML content and quoted attribute
+   values.
+3. EJS also generates arbitrary strings for other contexts, and knows nothing
+   about where its output ends up.
+4. You can replace the default escaping.
+5. Outside HTML content, you should.
+
+```javascript
+ejs.render(template, data, {escape: myEscapeFunction});
+```
+
+`escape` must go in the options argument. It cannot be set on `ejs` globally or
+passed in with the data. For a template that mixes contexts, escape per value
+with `<%- myEscapeFunction(name) %>` instead.
+
+The usual mistake is `<%= %>` inside a `<script>` block. Browsers do not decode
+HTML entities there, so the default escaping neither renders correctly nor
+protects you. Pass the value through an attribute and `JSON.parse` it instead of
+splicing it into JavaScript source. (`JSON.stringify` output is not safe there
+either. A `</script>` anywhere in your data ends the block early.)
 
 ### Includes
 
@@ -205,22 +261,18 @@ not supported in v3.0+.
 Custom delimiters can be applied on a per-template basis, or globally:
 
 ```javascript
-let ejs = require('ejs'),
-  users = ['geddy', 'neil', 'alex']
+import ejs from 'ejs';
+const users = ['geddy', 'neil', 'alex'];
 
 // Just one template
-ejs.render(
-  '<p>[?= users.join(" | "); ?]</p>',
-  { users: users },
-  { delimiter: '?', openDelimiter: '[', closeDelimiter: ']' }
-)
+ejs.render('<p>[?= users.join(" | "); ?]</p>', {users: users}, {delimiter: '?', openDelimiter: '[', closeDelimiter: ']'});
 // => '<p>geddy | neil | alex</p>'
 
 // Or globally
-ejs.delimiter = '?'
-ejs.openDelimiter = '['
-ejs.closeDelimiter = ']'
-ejs.render('<p>[?= users.join(" | "); ?]</p>', { users: users })
+ejs.delimiter = '?';
+ejs.openDelimiter = '[';
+ejs.closeDelimiter = ']';
+ejs.render('<p>[?= users.join(" | "); ?]</p>', {users: users});
 // => '<p>geddy | neil | alex</p>'
 ```
 
@@ -231,9 +283,10 @@ functions used to render templates. It's easy to plug in LRU caching using
 Node's `lru-cache` library:
 
 ```javascript
-let ejs = require('ejs'),
-  LRU = require('lru-cache')
-ejs.cache = LRU(100) // LRU cache with 100-item limit
+import ejs from 'ejs';
+import { LRUCache } from 'lru-cache';
+
+ejs.cache = LRUCache({max: 100}); // LRU cache with 100-item limit
 ```
 
 If you want to clear the EJS cache, call `ejs.clearCache`. If you're using the
@@ -245,12 +298,13 @@ of the LRU.
 The default file loader is `fs.readFileSync`, if you want to customize it, you can set ejs.fileLoader.
 
 ```javascript
-let ejs = require('ejs')
-let myFileLoad = function (filePath) {
-  return 'myFileLoad: ' + fs.readFileSync(filePath)
-}
+import ejs from 'ejs';
 
-ejs.fileLoader = myFileLoad
+const myFileLoad = function (filePath) {
+  return 'myFileLoad: ' + fs.readFileSync(filePath);
+};
+
+ejs.fileLoader = myFileLoad;
 ```
 
 With this feature, you can preprocess the template before reading it.
@@ -275,7 +329,7 @@ including headers and footers, like so:
 
 Go to the [Latest Release](https://github.com/mde/ejs/releases/latest), download
 `./ejs.js` or `./ejs.min.js`. Alternately, you can compile it yourself by cloning
-the repository and running `jake build` (or `$(npm bin)/jake build` if jake is
+the repository and running `jake build` (or `npx jake build` if jake is
 not installed globally).
 
 Include one of these files on your page, and `ejs` should be available globally.
@@ -287,11 +341,11 @@ Include one of these files on your page, and `ejs` should be available globally.
 <script src="ejs.min.js"></script>
 <script>
   let people = ['geddy', 'neil', 'alex'],
-    html = ejs.render('<%= people.join(", "); %>', { people: people })
+      html = ejs.render('<%= people.join(", "); %>', {people: people});
   // With jQuery:
-  $('#output').html(html)
+  $('#output').html(html);
   // Vanilla JS:
-  document.getElementById('output').innerHTML = html
+  document.getElementById('output').innerHTML = html;
 </script>
 ```
 
@@ -301,19 +355,17 @@ Most of EJS will work as expected; however, there are a few things to note:
 
 1. Obviously, since you do not have access to the filesystem, `ejs.renderFile()` won't work.
 2. For the same reason, `include`s do not work unless you use an `include callback`. Here is an example:
+  ```javascript
+  let str = "Hello <%= include('file', {person: 'John'}); %>",
+      fn = ejs.compile(str);
 
-```javascript
-let str = "Hello <%= include('file', {person: 'John'}); %>",
-  fn = ejs.compile(str, { client: true })
-
-fn(data, null, function (path, d) {
-  // include callback
-  // path -> 'file'
-  // d -> {person: 'John'}
-  // Put your code here
-  // Return the contents of file as a string
-}) // returns rendered string
-```
+  fn(data, null, function(path, d){ // include callback
+    // path -> 'file'
+    // d -> {person: 'John'}
+    // Put your code here
+    // Return the contents of file as a string
+  }); // returns rendered string
+  ```
 
 See the [examples folder](https://github.com/mde/ejs/tree/master/examples) for more details.
 
@@ -321,52 +373,66 @@ See the [examples folder](https://github.com/mde/ejs/tree/master/examples) for m
 
 EJS ships with a full-featured CLI. Options are similar to those used in JavaScript code:
 
-- `-o / --output-file FILE` Write the rendered output to FILE rather than stdout.
-- `-f / --data-file FILE` Must be JSON-formatted. Use parsed input from FILE as data for rendering.
-- `-i / --data-input STRING` Must be JSON-formatted and URI-encoded. Use parsed input from STRING as data for rendering.
-- `-m / --delimiter CHARACTER` Use CHARACTER with angle brackets for open/close (defaults to %).
-- `-p / --open-delimiter CHARACTER` Use CHARACTER instead of left angle bracket to open.
-- `-c / --close-delimiter CHARACTER` Use CHARACTER instead of right angle bracket to close.
-- `-s / --strict` When set to `true`, generated function is in strict mode
-- `-n / --no-with` Use 'locals' object for vars rather than using `with` (implies --strict).
-- `-l / --locals-name` Name to use for the object storing local variables when not using `with`.
-- `-w / --rm-whitespace` Remove all safe-to-remove whitespace, including leading and trailing whitespace.
-- `-d / --debug` Outputs generated function body
-- `-h / --help` Display this help message.
-- `-V/v / --version` Display the EJS version.
+  - `-o / --output-file FILE`            Write the rendered output to FILE rather than stdout.
+  - `-f / --data-file FILE`              Must be JSON-formatted. Use parsed input from FILE as data for rendering.
+  - `-i / --data-input STRING`           Must be JSON-formatted and URI-encoded. Use parsed input from STRING as data for rendering.
+  - `-m / --delimiter CHARACTER`         Use CHARACTER with angle brackets for open/close (defaults to %).
+  - `-p / --open-delimiter CHARACTER`    Use CHARACTER instead of left angle bracket to open.
+  - `-c / --close-delimiter CHARACTER`   Use CHARACTER instead of right angle bracket to close.
+  - `-s / --strict`                      Generate the function in strict mode (implies --no-with).
+  - `-n / --no-with`                     Use 'locals' object for vars rather than using `with`.
+  - `-l / --locals-name NAME`            Name to use for the object storing local variables when not using `with`.
+  - `-w / --rm-whitespace`               Remove all safe-to-remove whitespace, including leading and trailing whitespace.
+  - `-d / --debug`                       Outputs generated function body
+  - `-h / --help`                        Display this help message.
+  - `-V/v / --version`                   Display the EJS version.
 
 Here are some examples of usage:
 
 ```shell
 $ ejs -p [ -c ] ./template_file.ejs -o ./output.html
-$ ejs ./test/fixtures/user.ejs name=Lerxst
+$ ejs -m $ ./test/fixtures/user.ejs name=Lerxst
 $ ejs -n -l _ ./some_template.ejs -f ./data_file.json
 ```
 
+### Arguments
+
+As of v7:
+
+  - The template file comes first. Any `name=value` data comes after it.
+  - Unknown options are an error.
+  - Short options can be grouped (`-sdw`) and take attached values (`-m$`).
+  - A value that starts with `-` needs `=`: `-o=-out.html`.
+  - `--` ends options, for example when a template's name starts with `-`.
+  - Exit status is 0 on success, 2 for a usage error, and 1 for a runtime error.
+
 ### Data input
 
-There is a variety of ways to pass the CLI data for rendering.
+Pass JSON data one way: stdin, a data file (`-f`), or a command-line option
+(`-i`). Using `-f` and `-i` together is an error. Stdin is only read when there's
+no `-f`, `-i`, or `name=value` data.
 
 Stdin:
 
 ```shell
-$ ./test/fixtures/user_data.json | ejs ./test/fixtures/user.ejs
-$ ejs ./test/fixtures/user.ejs < test/fixtures/user_data.json
+$ cat ./test/fixtures/user_data.json | ejs -m $ ./test/fixtures/user.ejs
+$ ejs -m $ ./test/fixtures/user.ejs < test/fixtures/user_data.json
 ```
 
 A data file:
 
 ```shell
-$ ejs ./test/fixtures/user.ejs -f ./user_data.json
+$ ejs -m $ ./test/fixtures/user.ejs -f ./test/fixtures/user_data.json
 ```
 
 A command-line option (must be URI-encoded):
 
 ```shell
-./bin/cli.js -i %7B%22name%22%3A%20%22foo%22%7D ./test/fixtures/user.ejs
+./bin/cli.js -m $ -i %7B%22name%22%3A%20%22foo%22%7D ./test/fixtures/user.ejs
 ```
 
-Or, passing values directly at the end of the invocation:
+Or, passing `name=value` pairs after the template. These override values from
+`-f` or `-i`, and are always strings:
 
 ```shell
 ./bin/cli.js -m $ ./test/fixtures/user.ejs name=foo
@@ -374,29 +440,28 @@ Or, passing values directly at the end of the invocation:
 
 ### Output
 
-The CLI by default send output to stdout, but you can use the `-o` or `--output-file`
-flag to specify a target file to send the output to.
+The CLI sends output to stdout by default. Use `-o` or `--output-file` to write
+it to a file instead.
 
 ## IDE Integration with Syntax Highlighting
 
-VSCode:Javascript EJS by _DigitalBrainstem_
+VSCode:Javascript EJS by *DigitalBrainstem*
 
 ## Related projects
 
 There are a number of implementations of EJS:
 
-- TJ's implementation, the v1 of this library: https://github.com/tj/ejs
-- EJS Embedded JavaScript Framework on Google Code: https://code.google.com/p/embeddedjavascript/
-- Sam Stephenson's Ruby implementation: https://rubygems.org/gems/ejs
-- Erubis, an ERB implementation which also runs JavaScript: http://www.kuwata-lab.com/erubis/users-guide.04.html#lang-javascript
-- DigitalBrainstem EJS Language support: https://github.com/Digitalbrainstem/ejs-grammar
+ * TJ's implementation, the v1 of this library: https://github.com/tj/ejs
+ * EJS Embedded JavaScript Framework on Google Code: https://code.google.com/p/embeddedjavascript/
+ * Sam Stephenson's Ruby implementation: https://rubygems.org/gems/ejs
+ * Erubis, an ERB implementation which also runs JavaScript: http://www.kuwata-lab.com/erubis/users-guide.04.html#lang-javascript
+ * DigitalBrainstem EJS Language support: https://github.com/Digitalbrainstem/ejs-grammar
 
 ## License
 
 Licensed under the Apache License, Version 2.0
 (<http://www.apache.org/licenses/LICENSE-2.0>)
 
----
-
+- - -
 EJS Embedded JavaScript templates copyright 2112
 mde@fleegix.org.

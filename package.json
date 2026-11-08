@@ -3,41 +3,51 @@
   "description": "Embedded JavaScript templates",
   "keywords": [
     "template",
+    "templating",
     "engine",
-    "ejs"
+    "ejs",
+    "pocketbase"
   ],
-  "version": "3.1.10006",
-  "author": "Matthew Eernisse <mde@fleegix.org> (http://fleegix.org)",
+  "version": "7.0.2001",
+  "author": "Matthew Eernisse <matthew.eernisse@gmail.com>",
   "license": "Apache-2.0",
-  "main": "./lib/ejs.js",
+  "main": "./lib/cjs/ejs.js",
+  "module": "./lib/esm/ejs.js",
   "types": "./lib/ejs.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/ejs.d.ts",
+      "import": "./lib/esm/ejs.js",
+      "require": "./lib/cjs/ejs.js"
+    }
+  },
   "repository": {
     "type": "git",
     "url": "git://github.com/benallfree/pocketbase-ejs.git"
   },
   "bugs": "https://github.com/benallfree/pocketbase-ejs/issues",
   "homepage": "https://github.com/benallfree/pocketbase-ejs",
+  "dependencies": {
+    "pocketbase-node": "^0.0.3"
+  },
   "devDependencies": {
+    "@babel/eslint-parser": "^7.24.5",
     "@changesets/cli": "^2.27.11",
-    "browserify": "^16.5.1",
-    "eslint": "^6.8.0",
-    "git-directory-deploy": "^1.5.1",
-    "jsdoc": "^4.0.2",
+    "eslint": "^9.1.1",
+    "jake": "^12.10.1",
     "lru-cache": "^4.0.1",
     "mocha": "^10.2.0",
-    "uglify-js": "^3.3.16",
-    "jake": "^10.8.5"
+    "typescript": "^5.4.5"
   },
   "engines": {
-    "node": ">=0.10.0"
+    "node": ">=0.12.18"
   },
   "scripts": {
-    "test": "npx jake test"
+    "build": "npx jake compile",
+    "test": "npx jake test",
+    "prepublishOnly": "npx jake compile"
   },
   "files": [
     "lib"
-  ],
-  "dependencies": {
-    "pocketbase-node": "^0.0.2"
-  }
+  ]
 }
